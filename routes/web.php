@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\KardexController;
+use App\Http\Controllers\BatchController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -45,6 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/movements', [MovementController::class, 'store'])->name('movements.store');
 
     Route::get('/kardex', [KardexController::class, 'index'])->name('kardex.index');
+
+    Route::get('/batches', [BatchController::class, 'index'])->name('batches.index')->middleware(['auth']);
 });
 
 Route::middleware('auth')->group(function () {

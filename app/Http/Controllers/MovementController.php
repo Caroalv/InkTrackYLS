@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MovHeader;
 use App\Models\MovDetail;
+use App\Models\Dyelote;
 use App\Models\Item;
 use App\Models\Supplier;
 use App\Models\DocType;
@@ -46,10 +47,14 @@ class MovementController extends Controller
             'items'       => 'required|array|min:1',
             'items.*.id'  => 'required|exists:items,id',
             'items.*.qty' => 'required|numeric|min:0.01',
+            'items.*.batch_number'    => 'nullable|required_if:movtype,IN|string|max:255',
+            'items.*.expiration_date' => 'nullable|required_if:movtype,IN|date',
         ], [
             'docnumber.required' => 'El número de documento es obligatorio.',
             'items.required'     => 'Debe incluir al menos un insumo en el movimiento.',
             'items.*.qty.min'    => 'La cantidad debe ser mayor a 0.',
+            'items.*.batch_number.required_if' => 'El lote MSDS es obligatorio para las entradas.',
+            'items.*.expiration_date.required_if' => 'La fecha de vencimiento es obligatoria para las entradas.',
         ]);
 
         try {
@@ -64,7 +69,7 @@ class MovementController extends Controller
                     'SPindate'   => $request->movtype === 'OUT' ? now() : null,
                 ]);
 
-                // 2. Procesar Detalles y Stock
+                // 2. Procesar Detalles, Stock y Guardado en Dyelote
                 foreach ($request->items as $row) {
                     $item = Item::findOrFail($row['id']);
 
@@ -77,12 +82,27 @@ class MovementController extends Controller
                         $item->increment('currentstock', $row['qty']);
                     }
 
-                    MovDetail::create([
-                        'headerid'   => $header->id,
-                        'itemid'     => $item->id,
-                        'qty'        => $row['qty'],
-                        'realweight' => $row['realweight'] ?? null,
+                    // Detalle del movimiento
+                    $movDetail = MovDetail::create([
+                        'headerid'        => $header->id,
+                        'itemid'          => $item->id,
+                        'qty'             => $row['qty'],
+                        'realweight'      => $row['realweight'] ?? null,
+                        'batch_number'    => $request->movtype === 'IN' ? ($row['batch_number'] ?? null) : null,
+                        'expiration_date' => $request->movtype === 'IN' ? ($row['expiration_date'] ?? null) : null,
                     ]);
+
+                    // Inserta automáticamente en Dyelotes si es entrada con lote
+                    if ($request->movtype === 'IN' && !empty($row['batch_number'])) {
+                        Dyelote::create([
+                            'movdetailsid_IN' => $movDetail->id,
+                            'itemid'          => $item->id,
+                            'dyelote'         => $row['batch_number'],
+                            'duedate'         => $row['expiration_date'] ?? null,
+                            'qtyxlote'        => $row['qty'],
+                            'qtybalance'      => $row['qty'],
+                        ]);
+                    }
                 }
             });
 
@@ -95,7 +115,6 @@ class MovementController extends Controller
         }
     }
 
-    // Método para consultar el detalle de un movimiento vía AJAX
     public function show($id)
     {
         $movement = MovHeader::with(['supplier', 'docType', 'details.item'])->findOrFail($id);
@@ -109,9 +128,11 @@ class MovementController extends Controller
             'type'      => $movement->YLSindate ? 'ENTRADA' : 'SALIDA',
             'details'   => $movement->details->map(function ($detail) {
                 return [
-                    'item'       => $detail->item->itemname ?? 'Insumo Eliminado',
-                    'qty'        => $detail->qty,
-                    'realweight' => $detail->realweight ?? 'N/A',
+                    'item'            => $detail->item->itemname ?? 'Insumo Eliminado',
+                    'qty'             => $detail->qty,
+                    'realweight'      => $detail->realweight ?? 'N/A',
+                    'batch_number'    => $detail->batch_number ?? 'N/A',
+                    'expiration_date' => $detail->expiration_date ?? 'N/A',
                 ];
             }),
         ]);

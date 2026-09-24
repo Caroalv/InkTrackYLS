@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use Illuminate\Http\Request;
-use Illuminate\Database\QueryException;
 use Throwable;
 
 class SupplierController extends Controller
@@ -15,12 +14,16 @@ class SupplierController extends Controller
 
         $suppliers = Supplier::query()
             ->when($search, function ($query, $search) {
-                $query->where('suppliername', 'like', "%{$search}%");
-
+                $query->where(function ($q) use ($search) {
+                    $q->where('suppliername', 'like', "%{$search}%")
+                        ->orWhere('contactname', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
             })
             ->latest()
             ->paginate(10)
-            ->withQueryString(); // Mantiene el parámetro de búsqueda en la paginación
+            ->withQueryString();
 
         return view('suppliers.index', compact('suppliers', 'search'));
     }
@@ -42,13 +45,17 @@ class SupplierController extends Controller
 
         Supplier::create($validated);
 
-        return redirect()->route('suppliers.index')->with('success', 'Proveedor registrado correctamente.');
+        return redirect()
+            ->route('suppliers.index')
+            ->with('success', 'Proveedor registrado correctamente.');
     }
 
     public function show(Supplier $supplier)
     {
-        // Si la relación en tu modelo Supplier se llama dyelotes o items, puedes cargarla con eager loading:
-        // $supplier->load('dyelotes'); 
+        $supplier->load([
+            'movHeaders.docType',
+            'movHeaders.dyelotes.item',
+        ]);
 
         return view('suppliers.show', compact('supplier'));
     }
@@ -70,19 +77,37 @@ class SupplierController extends Controller
 
         $supplier->update($validated);
 
-        return redirect()->route('suppliers.index')->with('success', 'Proveedor actualizado correctamente.');
+        return redirect()
+            ->route('suppliers.index')
+            ->with('success', 'Proveedor actualizado correctamente.');
     }
 
     public function destroy(Supplier $supplier)
     {
         try {
             $supplier->delete();
-            return redirect()->route('suppliers.index')->with('success', 'Proveedor eliminado correctamente.');
+
+            return redirect()
+                ->route('suppliers.index')
+                ->with('success', 'Proveedor eliminado correctamente.');
+
         } catch (Throwable $e) {
+
             if ($e->getCode() == "23000" || str_contains($e->getMessage(), '1451')) {
-                return redirect()->route('suppliers.index')->with('error', 'No se puede eliminar este proveedor porque tiene registros o compras asociadas.');
+                return redirect()
+                    ->route('suppliers.index')
+                    ->with(
+                        'error',
+                        'No se puede eliminar este proveedor porque tiene registros o compras asociadas.'
+                    );
             }
-            return redirect()->route('suppliers.index')->with('error', 'Ocurrió un error al intentar eliminar el proveedor.');
+
+            return redirect()
+                ->route('suppliers.index')
+                ->with(
+                    'error',
+                    'Ocurrió un error al intentar eliminar el proveedor.'
+                );
         }
     }
 }

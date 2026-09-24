@@ -25,23 +25,33 @@ class DatabaseSeeder extends Seeder
             'password' => bcrypt('12345678'),
         ]);
 
+
         // 2. Grupos y Subgrupos
-        $group = Group::create(['groupname' => 'Production']);
+        $group = Group::create([
+            'groupname' => 'Production'
+        ]);
+
         $subgroup = Subgroup::create([
             'groupid' => $group->id,
             'subgroupname' => 'Prisma Group',
         ]);
 
+
         // 3. Unidad de Medida
-        $unit = MeasurementUnit::create(['mesureunitname' => 'Kg']);
+        $unit = MeasurementUnit::create([
+            'mesureunitname' => 'Kg'
+        ]);
+
 
         // 4. Proveedor
         $supplier = Supplier::create([
             'suppliername' => 'Plastisol',
-            'contact' => 'Ventas Plastisol',
-            'phonenumber' => '2200-0000',
+            'contactname' => 'Ventas Plastisol',
+            'phone' => '2200-0000',
             'email' => 'ventas@plastisol.com',
+            'address' => 'San Salvador, El Salvador',
         ]);
+
 
         // 5. Tipos de Documento (Entrada / Salida)
         $docIn = DocType::create([
@@ -55,6 +65,7 @@ class DatabaseSeeder extends Seeder
             'doctype' => 'SAL',
             'doctypefullname' => 'Salida a Producción',
         ]);
+
 
         // 6. Catálogo de Ítems (Tintas)
         $item1 = Item::create([
@@ -90,6 +101,7 @@ class DatabaseSeeder extends Seeder
             'estimatedunitweight' => 1.00,
         ]);
 
+
         // 7. Registro de Cabecera de Movimiento (Entrada inicial)
         $header = MovHeader::create([
             'doctypeid' => $docIn->id,
@@ -100,7 +112,8 @@ class DatabaseSeeder extends Seeder
             'SPindate' => '2026-07-22',
         ]);
 
-        // 8. Detalles del Movimiento y Registro de Lotes (Dyelotes)
+
+        // 8. Detalles del Movimiento y Registro de Lotes
         $itemsData = [
             [
                 'item' => $item1,
@@ -128,7 +141,10 @@ class DatabaseSeeder extends Seeder
             ],
         ];
 
+
+        // 9. Crear movimientos y lotes
         foreach ($itemsData as $data) {
+
             $detail = MovDetail::create([
                 'headerid' => $header->id,
                 'itemid' => $data['item']->id,

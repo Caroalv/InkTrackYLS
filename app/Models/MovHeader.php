@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class MovHeader extends Model
 {
     protected $table = 'mov_headers';
+
     protected $fillable = [
         'doctypeid',
         'supplierid',
@@ -29,5 +30,17 @@ class MovHeader extends Model
     public function details()
     {
         return $this->hasMany(MovDetail::class, 'headerid');
+    }
+
+    public function dyelotes()
+    {
+        return $this->hasManyThrough(
+            Dyelote::class,
+            MovDetail::class,
+            'headerid',
+            'movdetailsid_IN',
+            'id',
+            'id'
+        );
     }
 }

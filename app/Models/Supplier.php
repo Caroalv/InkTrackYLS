@@ -7,7 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 class Supplier extends Model
 {
     protected $table = 'suppliers';
-    protected $fillable = ['suppliername', 'contact', 'phonenumber', 'email'];
+
+    protected $fillable = [
+        'suppliername',
+        'contactname',
+        'phone',
+        'email',
+        'address',
+    ];
 
     public function movHeaders()
     {
